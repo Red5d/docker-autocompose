@@ -25,4 +25,4 @@ Build container by running:
 
 Use the new image to generate a docker-compose file from a running container:
 
-     docker run -v /var/run/docker.sock:/var/run/docker.sock docker-autocompose
+     docker run -v /var/run/docker.sock:/var/run/docker.sock docker-autocompose $container-id
