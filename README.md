@@ -21,8 +21,8 @@ With this tool, I can easily generate docker-compose files for managing the cont
 
 Build container by running:
 
-    docker build -t docker-autocompose .
+    docker build -t red5d/docker-autocompose .
 
 Use the new image to generate a docker-compose file from a running container:
 
-     docker run -v /var/run/docker.sock:/var/run/docker.sock docker-autocompose $container-id
+     docker run -v /var/run/docker.sock:/var/run/docker.sock red5d/docker-autocompose $container-id
