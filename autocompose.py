@@ -87,7 +87,7 @@ def generate(args):
         else:
             values['expose'] = expose_value
 
-    except KeyError:
+    except (KeyError, TypeError):
         # No ports exposed/bound. Continue without them.
         ports = None
 
