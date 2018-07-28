@@ -1,81 +1,95 @@
 #! /usr/bin/env python
 
-import pyaml, argparse, sys
-from docker import Client
+import sys, argparse, pyaml, docker
+from collections import OrderedDict
 
 def main():
     parser = argparse.ArgumentParser(description='Generate docker-compose yaml definition from running container.')
-    parser.add_argument('cname', type=str, help='The name of the container to process.')
+    parser.add_argument('-v', '--version', type=int, default=3, help='Compose file version (1 or 3)') 
+    parser.add_argument('cnames', nargs='*', type=str, help='The name of the container to process.')
     args = parser.parse_args()
 
-    generate(args)
+    struct = {}
+    for cname in args.cnames:
+        struct.update(generate(cname))
+
+    render(struct, args)
+
+
+def render(struct, args):
+    # Render yaml file
+    if args.version == 1:
+        pyaml.p(OrderedDict(struct))
+    else:
+        pyaml.p(OrderedDict({'version': '"3"', 'services': struct}))
     
 
-def generate(args):
-    c = Client(base_url='unix://var/run/docker.sock')
+def generate(cname):
+    c = docker.from_env()
 
     try:
-        cid = [x['Id'] for x in c.containers() if args.cname in x['Names'][0]][0]
+        cid = [x.short_id for x in c.containers.list() if cname == x.name or x.short_id in cname][0]
     except IndexError:
         print("That container is not running.")
         sys.exit(1)
 
-    cinspect = c.inspect_container(cid)
+    cattrs = c.containers.get(cid).attrs
 
 
     # Build yaml dict structure
 
     cfile = {}
-    cfile[args.cname] = {}
-    ct = cfile[args.cname]
+    cfile[cattrs['Name'][1:]] = {}
+    ct = cfile[cattrs['Name'][1:]]
 
     values = {
-        'cap_add': cinspect['HostConfig']['CapAdd'],
-        'cap_drop': cinspect['HostConfig']['CapDrop'],
-        'cgroup_parent': cinspect['HostConfig']['CgroupParent'],
-        'container_name': args.cname,
-        'devices': cinspect['HostConfig']['Devices'],
-        'dns': cinspect['HostConfig']['Dns'],
-        'dns_search': cinspect['HostConfig']['DnsSearch'],
-        'environment': cinspect['Config']['Env'],
-        'extra_hosts': cinspect['HostConfig']['ExtraHosts'],
-        'image': cinspect['Config']['Image'],
-        'labels': cinspect['Config']['Labels'],
-        'links': cinspect['HostConfig']['Links'],
-        'log_driver': cinspect['HostConfig']['LogConfig']['Type'],
-        'log_opt': cinspect['HostConfig']['LogConfig']['Config'],
-        'net': cinspect['HostConfig']['NetworkMode'],
-        'security_opt': cinspect['HostConfig']['SecurityOpt'],
-        'ulimits': cinspect['HostConfig']['Ulimits'],
-        'volumes': cinspect['HostConfig']['Binds'],
-        'volume_driver': cinspect['HostConfig']['VolumeDriver'],
-        'volumes_from': cinspect['HostConfig']['VolumesFrom'],
-        'cpu_shares': cinspect['HostConfig']['CpuShares'],
-        'cpuset': cinspect['HostConfig']['CpusetCpus']+','+cinspect['HostConfig']['CpusetMems'],
-        'entrypoint': cinspect['Config']['Entrypoint'],
-        'user': cinspect['Config']['User'],
-        'working_dir': cinspect['Config']['WorkingDir'],
-        'domainname': cinspect['Config']['Domainname'],
-        'hostname': cinspect['Config']['Hostname'],
-        'ipc': cinspect['HostConfig']['IpcMode'],
-        'mac_address': cinspect['NetworkSettings']['MacAddress'],
-        'mem_limit': cinspect['HostConfig']['Memory'],
-        'memswap_limit': cinspect['HostConfig']['MemorySwap'],
-        'privileged': cinspect['HostConfig']['Privileged'],
-        'restart': cinspect['HostConfig']['RestartPolicy']['Name'],
-        'read_only': cinspect['HostConfig']['ReadonlyRootfs'],
-        'stdin_open': cinspect['Config']['OpenStdin'],
-        'tty': cinspect['Config']['Tty']
+        'cap_add': cattrs['HostConfig']['CapAdd'],
+        'cap_drop': cattrs['HostConfig']['CapDrop'],
+        'cgroup_parent': cattrs['HostConfig']['CgroupParent'],
+        'container_name': cattrs['Name'][1:],
+        'devices': cattrs['HostConfig']['Devices'],
+        'dns': cattrs['HostConfig']['Dns'],
+        'dns_search': cattrs['HostConfig']['DnsSearch'],
+        'environment': cattrs['Config']['Env'],
+        'extra_hosts': cattrs['HostConfig']['ExtraHosts'],
+        'image': cattrs['Config']['Image'],
+        'labels': cattrs['Config']['Labels'],
+        'links': cattrs['HostConfig']['Links'],
+        #'log_driver': cattrs['HostConfig']['LogConfig']['Type'],
+        #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
+        'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
+        'net': cattrs['HostConfig']['NetworkMode'],
+        'security_opt': cattrs['HostConfig']['SecurityOpt'],
+        'ulimits': cattrs['HostConfig']['Ulimits'],
+        'volumes': cattrs['HostConfig']['Binds'],
+        'volume_driver': cattrs['HostConfig']['VolumeDriver'],
+        'volumes_from': cattrs['HostConfig']['VolumesFrom'],
+        'cpu_shares': cattrs['HostConfig']['CpuShares'],
+        'cpuset': cattrs['HostConfig']['CpusetCpus']+','+cattrs['HostConfig']['CpusetMems'],
+        'entrypoint': cattrs['Config']['Entrypoint'],
+        'user': cattrs['Config']['User'],
+        'working_dir': cattrs['Config']['WorkingDir'],
+        'domainname': cattrs['Config']['Domainname'],
+        'hostname': cattrs['Config']['Hostname'],
+        'ipc': cattrs['HostConfig']['IpcMode'],
+        'mac_address': cattrs['NetworkSettings']['MacAddress'],
+        'mem_limit': cattrs['HostConfig']['Memory'],
+        'memswap_limit': cattrs['HostConfig']['MemorySwap'],
+        'privileged': cattrs['HostConfig']['Privileged'],
+        'restart': cattrs['HostConfig']['RestartPolicy']['Name'],
+        'read_only': cattrs['HostConfig']['ReadonlyRootfs'],
+        'stdin_open': cattrs['Config']['OpenStdin'],
+        'tty': cattrs['Config']['Tty']
     }
 
     # Check for command and add it if present.
-    if cinspect['Config']['Cmd'] != None:
-        values['command'] = " ".join(cinspect['Config']['Cmd']),
+    if cattrs['Config']['Cmd'] != None:
+        values['command'] = " ".join(cattrs['Config']['Cmd']),
 
     # Check for exposed/bound ports and add them if needed.
     try:
-        expose_value =  list(cinspect['Config']['ExposedPorts'].keys())
-        ports_value = [cinspect['HostConfig']['PortBindings'][key][0]['HostIp']+':'+cinspect['HostConfig']['PortBindings'][key][0]['HostPort']+':'+key for key in cinspect['HostConfig']['PortBindings']]
+        expose_value =  list(cattrs['Config']['ExposedPorts'].keys())
+        ports_value = [cattrs['HostConfig']['PortBindings'][key][0]['HostIp']+':'+cattrs['HostConfig']['PortBindings'][key][0]['HostPort']+':'+key for key in cattrs['HostConfig']['PortBindings']]
 
         # If bound ports found, don't use the 'expose' value.
         if (ports_value != None) and (ports_value != "") and (ports_value != []) and (ports_value != 'null') and (ports_value != {}) and (ports_value != "default") and (ports_value != 0) and (ports_value != ",") and (ports_value != "no"):
@@ -97,8 +111,8 @@ def generate(args):
         if (value != None) and (value != "") and (value != []) and (value != 'null') and (value != {}) and (value != "default") and (value != 0) and (value != ",") and (value != "no"):
             ct[key] = value
 
-    # Render yaml file
-    pyaml.p(cfile)
+    return cfile
+
 
 if __name__ == "__main__":
     main()
