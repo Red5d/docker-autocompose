@@ -10,18 +10,20 @@ def main():
     args = parser.parse_args()
 
     struct = {}
+    networks = []
     for cname in args.cnames:
-        struct.update(generate(cname))
+        cfile, networks = generate(cname)
+        struct.update(cfile)
 
-    render(struct, args)
+    render(struct, args, networks)
 
 
-def render(struct, args):
+def render(struct, args, networks):
     # Render yaml file
     if args.version == 1:
         pyaml.p(OrderedDict(struct))
     else:
-        pyaml.p(OrderedDict({'version': '"3"', 'services': struct}))
+        pyaml.p(OrderedDict({'version': '"3"', 'services': struct, 'networks': networks}))
     
 
 def generate(cname):
@@ -58,8 +60,7 @@ def generate(cname):
         #'log_driver': cattrs['HostConfig']['LogConfig']['Type'],
         #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
         'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
-        'net': cattrs['HostConfig']['NetworkMode'],
-        'networks': [{x: {'aliases': cattrs['NetworkSettings']['Networks'][x]['Aliases']}} for x in cattrs['NetworkSettings']['Networks'].keys()],
+        'networks': {x: {'aliases': cattrs['NetworkSettings']['Networks'][x]['Aliases']} for x in cattrs['NetworkSettings']['Networks'].keys()},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
         'volumes': cattrs['HostConfig']['Binds'],
@@ -82,6 +83,12 @@ def generate(cname):
         'stdin_open': cattrs['Config']['OpenStdin'],
         'tty': cattrs['Config']['Tty']
     }
+
+    networklist = c.networks.list()
+    networks = {}
+    for network in networklist:
+        if network.attrs['Name'] in values['networks'].keys():
+            networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
 
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] != None:
@@ -112,7 +119,7 @@ def generate(cname):
         if (value != None) and (value != "") and (value != []) and (value != 'null') and (value != {}) and (value != "default") and (value != 0) and (value != ",") and (value != "no"):
             ct[key] = value
 
-    return cfile
+    return cfile, networks
 
 
 if __name__ == "__main__":
