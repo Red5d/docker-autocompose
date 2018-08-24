@@ -59,6 +59,7 @@ def generate(cname):
         #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
         'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
         'net': cattrs['HostConfig']['NetworkMode'],
+        'networks': [{x: {'aliases': cattrs['NetworkSettings']['Networks'][x]['Aliases']}} for x in cattrs['NetworkSettings']['Networks'].keys()],
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
         'volumes': cattrs['HostConfig']['Binds'],
