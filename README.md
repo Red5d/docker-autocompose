@@ -17,7 +17,7 @@ Generate a compose file for multiple containers together:
 
 The script defaults to outputting to compose file version 3, but use "-v 1" to output to version 1:
 
-    sudo python autocompose.py -v apache-test
+    sudo python autocompose.py -v 1 apache-test
 
 
 Outputs a docker-compose compatible yaml structure:
