@@ -3,7 +3,7 @@ Generates a docker-compose yaml definition from a running container.
 
 Required Modules:
 * [pyaml](https://pypi.python.org/pypi/pyaml/)
-* [docker-py](https://pypi.python.org/pypi/docker-py)
+* [docker](https://pypi.python.org/pypi/docker)
 
 Example Usage:
 
