@@ -60,7 +60,7 @@ def generate(cname):
         #'log_driver': cattrs['HostConfig']['LogConfig']['Type'],
         #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
         'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
-        'networks': {x: {'aliases': cattrs['NetworkSettings']['Networks'][x]['Aliases']} for x in cattrs['NetworkSettings']['Networks'].keys()},
+        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys()},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
         'volumes': cattrs['HostConfig']['Binds'],
@@ -87,7 +87,7 @@ def generate(cname):
     networklist = c.networks.list()
     networks = {}
     for network in networklist:
-        if network.attrs['Name'] in values['networks'].keys():
+        if network.attrs['Name'] in values['networks']:
             networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
 
     # Check for command and add it if present.
