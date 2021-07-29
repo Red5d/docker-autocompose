@@ -60,7 +60,7 @@ def generate(cname):
         #'log_driver': cattrs['HostConfig']['LogConfig']['Type'],
         #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
         'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
-        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys()},
+        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x != 'bridge'},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
         'volumes': cattrs['HostConfig']['Binds'],
@@ -80,6 +80,9 @@ def generate(cname):
         'tty': cattrs['Config']['Tty']
     }
 
+    if values['networks'] == set():
+        del values['networks']
+    
     networklist = c.networks.list()
     networks = {}
     for network in networklist:
