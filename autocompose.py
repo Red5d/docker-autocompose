@@ -49,7 +49,7 @@ def generate(cname):
         'cap_drop': cattrs['HostConfig']['CapDrop'],
         'cgroup_parent': cattrs['HostConfig']['CgroupParent'],
         'container_name': cattrs['Name'][1:],
-        'devices': cattrs['HostConfig']['Devices'],
+        'devices': [],
         'dns': cattrs['HostConfig']['Dns'],
         'dns_search': cattrs['HostConfig']['DnsSearch'],
         'environment': cattrs['Config']['Env'],
@@ -80,6 +80,10 @@ def generate(cname):
         'tty': cattrs['Config']['Tty']
     }
 
+    # Populate devices key if device values are present
+    if cattrs['HostConfig']['Devices']:
+        values['devices'] = [x['PathOnHost']+':'+x['PathInContainer'] for x in cattrs['HostConfig']['Devices']]
+    
     networks = {}
     if values['networks'] == set():
         del values['networks']
