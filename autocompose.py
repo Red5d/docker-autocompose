@@ -80,14 +80,14 @@ def generate(cname):
         'tty': cattrs['Config']['Tty']
     }
 
+    networks = {}
     if values['networks'] == set():
         del values['networks']
-    
-    networklist = c.networks.list()
-    networks = {}
-    for network in networklist:
-        if network.attrs['Name'] in values['networks']:
-            networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
+    else:
+        networklist = c.networks.list()
+        for network in networklist:
+            if network.attrs['Name'] in values['networks']:
+                networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
 
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] != None:
