@@ -30,9 +30,9 @@ def generate(cname):
     c = docker.from_env()
 
     try:
-        cid = [x.short_id for x in c.containers.list() if cname == x.name or x.short_id in cname][0]
+        cid = [x.short_id for x in c.containers.list(all=True) if cname == x.name or x.short_id in cname][0]
     except IndexError:
-        print("That container is not running.")
+        print("That container is not available.")
         sys.exit(1)
 
     cattrs = c.containers.get(cid).attrs
