@@ -22,7 +22,8 @@ jobs:
         id: prep
         run: |
           REPO=$CI_REPOSITORY_NAME
-          DOCKER_IMAGE=${{ github.repository_owner }}/${REPO}
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          DOCKER_IMAGE=${OWNER}/${REPO}
           if [ "$CI_REF_NAME" == "master" ];then VERSION=latest;fi
           if [ "$CI_REF_NAME" == "dev" ];then VERSION=mightly;fi
           if [ "$CI_REF_NAME" == "dockserver" ];then VERSION=dockserver;fi
