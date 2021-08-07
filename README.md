@@ -1,9 +1,10 @@
 # docker-autocompose
-Generates a docker-compose yaml definition from a running container.
+Generates a docker-compose yaml definition from a docker container.
 
 Required Modules:
-* [pyaml](https://pypi.python.org/pypi/pyaml/)
-* [docker](https://pypi.python.org/pypi/docker)
+* [pyaml](https://pypi.python.org/project/pyaml/)
+* [docker](https://pypi.python.org/project/docker)
+* [six](https://pypi.python.org/project/six)
 
 Example Usage:
 
@@ -32,13 +33,13 @@ With this tool, I can easily generate docker-compose files for managing the cont
 
 ## Docker Usage
 
-You can use this tool from a docker container without installing it locally by either building it or using the [automated build on dockerhub.](https://hub.docker.com/r/red5d/docker-autocompose/)
+You can use this tool from a docker container by either cloning this repo and building the image or using the [automatically generated image on GitHub](https://github.com/Red5d/docker-autocompose/pkgs/container/docker-autocompose)
 
-Build the container by running:
+Pull the image from GitHub (supports both x86 and ARM)
 
-    docker build -t red5d/docker-autocompose .
+    docker pull ghcr.io/red5d/docker-autocompose:latest
 
 Use the new image to generate a docker-compose file from a running container or a list of space-separated container names or ids:
 
-     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock red5d/docker-autocompose <container-name-or-id> <additional-names-or-ids>...
+    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/red5d/docker-autocompose <container-name-or-id> <additional-names-or-ids>...
 
