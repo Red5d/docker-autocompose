@@ -49,7 +49,7 @@ def generate(cname):
         'cap_drop': cattrs['HostConfig']['CapDrop'],
         'cgroup_parent': cattrs['HostConfig']['CgroupParent'],
         'container_name': cattrs['Name'][1:],
-        'devices': cattrs['HostConfig']['Devices'],
+        'devices': [],
         'dns': cattrs['HostConfig']['Dns'],
         'dns_search': cattrs['HostConfig']['DnsSearch'],
         'environment': cattrs['Config']['Env'],
@@ -60,14 +60,12 @@ def generate(cname):
         #'log_driver': cattrs['HostConfig']['LogConfig']['Type'],
         #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
         'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
-        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys()},
+        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x != 'bridge'},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
         'volumes': cattrs['HostConfig']['Binds'],
         'volume_driver': cattrs['HostConfig']['VolumeDriver'],
         'volumes_from': cattrs['HostConfig']['VolumesFrom'],
-        'cpu_shares': cattrs['HostConfig']['CpuShares'],
-        'cpuset': cattrs['HostConfig']['CpusetCpus']+','+cattrs['HostConfig']['CpusetMems'],
         'entrypoint': cattrs['Config']['Entrypoint'],
         'user': cattrs['Config']['User'],
         'working_dir': cattrs['Config']['WorkingDir'],
@@ -75,8 +73,6 @@ def generate(cname):
         'hostname': cattrs['Config']['Hostname'],
         'ipc': cattrs['HostConfig']['IpcMode'],
         'mac_address': cattrs['NetworkSettings']['MacAddress'],
-        'mem_limit': cattrs['HostConfig']['Memory'],
-        'memswap_limit': cattrs['HostConfig']['MemorySwap'],
         'privileged': cattrs['HostConfig']['Privileged'],
         'restart': cattrs['HostConfig']['RestartPolicy']['Name'],
         'read_only': cattrs['HostConfig']['ReadonlyRootfs'],
@@ -84,11 +80,18 @@ def generate(cname):
         'tty': cattrs['Config']['Tty']
     }
 
-    networklist = c.networks.list()
+    # Populate devices key if device values are present
+    if cattrs['HostConfig']['Devices']:
+        values['devices'] = [x['PathOnHost']+':'+x['PathInContainer'] for x in cattrs['HostConfig']['Devices']]
+    
     networks = {}
-    for network in networklist:
-        if network.attrs['Name'] in values['networks']:
-            networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
+    if values['networks'] == set():
+        del values['networks']
+    else:
+        networklist = c.networks.list()
+        for network in networklist:
+            if network.attrs['Name'] in values['networks']:
+                networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
 
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] != None:
