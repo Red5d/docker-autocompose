@@ -43,3 +43,6 @@ Use the new image to generate a docker-compose file from a running container or 
 
     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/red5d/docker-autocompose <container-name-or-id> <additional-names-or-ids>...
 
+To print out all containers in a docker-compose format:
+
+    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/red5d/docker-autocompose $(docker ps -aq)
