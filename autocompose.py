@@ -94,12 +94,12 @@ def generate(cname):
                 networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
 
     # Check for command and add it if present.
-    if cattrs['Config']['Cmd'] != None:
-        values['command'] = " ".join(cattrs['Config']['Cmd']),
+    if cattrs['Config']['Cmd'] is not None:
+        values['command'] = cattrs['Config']['Cmd']
 
     # Check for exposed/bound ports and add them if needed.
     try:
-        expose_value =  list(cattrs['Config']['ExposedPorts'].keys())
+        expose_value = list(cattrs['Config']['ExposedPorts'].keys())
         ports_value = [cattrs['HostConfig']['PortBindings'][key][0]['HostIp']+':'+cattrs['HostConfig']['PortBindings'][key][0]['HostPort']+':'+key for key in cattrs['HostConfig']['PortBindings']]
 
         # If bound ports found, don't use the 'expose' value.
