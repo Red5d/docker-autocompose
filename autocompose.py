@@ -93,7 +93,8 @@ def generate(cname):
         networklist = c.networks.list()
         for network in networklist:
             if network.attrs['Name'] in values['networks']:
-                networks[network.attrs['Name']] = {'external': (not network.attrs['Internal'])}
+                networks[network.attrs['Name']] = {'external': (not network.attrs['Internal']),
+                                                   'name': network.attrs['Name']}
 
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] is not None:
