@@ -10,14 +10,14 @@ def main():
     args = parser.parse_args()
 
     struct = {}
-    networks = set()
+    networks = {}
     for cname in args.cnames:
         cfile, c_networks = generate(cname)
 
         struct.update(cfile)
         networks.update(c_networks)
 
-    render(struct, args, list(networks))
+    render(struct, args, networks)
 
 
 def render(struct, args, networks):
