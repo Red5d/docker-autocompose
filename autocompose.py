@@ -3,15 +3,26 @@ import datetime
 import sys, argparse, pyaml, docker
 from collections import OrderedDict
 
+
+def list_container_names():
+    c = docker.from_env()
+    return [container.name for container in c.containers.list(all=True)]
+
+
 def main():
     parser = argparse.ArgumentParser(description='Generate docker-compose yaml definition from running container.')
+    parser.add_argument('-a', '--all', action='store_true', help='Include all active containers')
     parser.add_argument('-v', '--version', type=int, default=3, help='Compose file version (1 or 3)') 
     parser.add_argument('cnames', nargs='*', type=str, help='The name of the container to process.')
     args = parser.parse_args()
 
+    container_names = args.cnames
+    if args.all:
+        container_names.extend(list_container_names())
+
     struct = {}
     networks = {}
-    for cname in args.cnames:
+    for cname in container_names:
         cfile, c_networks = generate(cname)
 
         struct.update(cfile)
