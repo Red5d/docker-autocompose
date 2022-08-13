@@ -12,7 +12,7 @@ def list_container_names():
 def main():
     parser = argparse.ArgumentParser(description='Generate docker-compose yaml definition from running container.')
     parser.add_argument('-a', '--all', action='store_true', help='Include all active containers')
-    parser.add_argument('-v', '--version', type=int, default=3, help='Compose file version (1 or 3)') 
+    parser.add_argument('-v', '--version', type=int, default=3, help='Compose file version (1 or 3)')
     parser.add_argument('cnames', nargs='*', type=str, help='The name of the container to process.')
     args = parser.parse_args()
 
@@ -22,21 +22,23 @@ def main():
 
     struct = {}
     networks = {}
+    volumes = {}
     for cname in container_names:
-        cfile, c_networks = generate(cname)
+        cfile, c_networks, c_volumes = generate(cname)
 
         struct.update(cfile)
         networks.update(c_networks)
+        volumes.update(c_volumes)
 
-    render(struct, args, networks)
+    render(struct, args, networks, volumes)
 
 
-def render(struct, args, networks):
+def render(struct, args, networks, volumes):
     # Render yaml file
     if args.version == 1:
         pyaml.p(OrderedDict(struct))
     else:
-        pyaml.p(OrderedDict({'version': '"3"', 'services': struct, 'networks': networks}))
+        pyaml.p(OrderedDict({'version': '"3"', 'services': struct, 'networks': networks, 'volumes': volumes}))
 
 
 def is_date_or_time(s: str):
@@ -121,6 +123,11 @@ def generate(cname):
                 networks[network.attrs['Name']] = {'external': (not network.attrs['Internal']),
                                                    'name': network.attrs['Name']}
 
+    volumes = {}
+    for volume in values['volumes']:
+        volume_name = volume.split(':')[0]
+        volumes[volume_name] = {'external': True}
+
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] is not None:
         values['command'] = cattrs['Config']['Cmd']
@@ -150,7 +157,7 @@ def generate(cname):
         if (value != None) and (value != "") and (value != []) and (value != 'null') and (value != {}) and (value != "default") and (value != 0) and (value != ",") and (value != "no"):
             ct[key] = value
 
-    return cfile, networks
+    return cfile, networks, volumes
 
 
 if __name__ == "__main__":
