@@ -22,21 +22,23 @@ def main():
 
     struct = {}
     networks = {}
+    volumes = {}
     for cname in container_names:
-        cfile, c_networks = generate(cname)
+        cfile, c_networks, c_volumes = generate(cname)
 
         struct.update(cfile)
         networks.update(c_networks)
+        volumes.update(c_volumes)
 
-    render(struct, args, networks)
+    render(struct, args, networks, volumes)
 
 
-def render(struct, args, networks):
+def render(struct, args, networks, volumes):
     # Render yaml file
     if args.version == 1:
         pyaml.p(OrderedDict(struct))
     else:
-        pyaml.p(OrderedDict({'version': '"3"', 'services': struct, 'networks': networks}))
+        pyaml.p(OrderedDict({'version': '"3"', 'services': struct, 'networks': networks, 'volumes': volumes}))
 
 
 def is_date_or_time(s: str):
@@ -90,8 +92,7 @@ def generate(cname):
         'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x != 'bridge'},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
-        'volumes': cattrs['HostConfig']['Binds'] or
-                   [f'{m["Source"]}:{m["Target"]}' for m in cattrs['HostConfig']['Mounts']],
+        'volumes': cattrs['HostConfig']['Binds'],
         'volume_driver': cattrs['HostConfig']['VolumeDriver'],
         'volumes_from': cattrs['HostConfig']['VolumesFrom'],
         'entrypoint': cattrs['Config']['Entrypoint'],
@@ -122,6 +123,12 @@ def generate(cname):
                 networks[network.attrs['Name']] = {'external': (not network.attrs['Internal']),
                                                    'name': network.attrs['Name']}
 
+    volumes = {}
+    for volume in c.volumes.list()
+        volume_name = volume.split(':')[0]
+        new_volume = {external: true}
+        volumes[volume_name] = new_volume
+
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] is not None:
         values['command'] = cattrs['Config']['Cmd']
@@ -151,7 +158,7 @@ def generate(cname):
         if (value != None) and (value != "") and (value != []) and (value != 'null') and (value != {}) and (value != "default") and (value != 0) and (value != ",") and (value != "no"):
             ct[key] = value
 
-    return cfile, networks
+    return cfile, networks, volumes
 
 
 if __name__ == "__main__":
