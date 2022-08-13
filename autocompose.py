@@ -124,7 +124,7 @@ def generate(cname):
                                                    'name': network.attrs['Name']}
 
     volumes = {}
-    for volume in c.volumes.list()
+    for volume in c.volumes.list():
         volume_name = volume.split(':')[0]
         new_volume = {external: true}
         volumes[volume_name] = new_volume
