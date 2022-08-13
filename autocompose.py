@@ -90,7 +90,8 @@ def generate(cname):
         'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x != 'bridge'},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
-        'volumes': cattrs['HostConfig']['Binds'],
+        'volumes': cattrs['HostConfig']['Binds'] or
+                   [f'{m["Source"]}:{m["Target"]}' for m in cattrs['HostConfig']['Mounts']],
         'volume_driver': cattrs['HostConfig']['VolumeDriver'],
         'volumes_from': cattrs['HostConfig']['VolumesFrom'],
         'entrypoint': cattrs['Config']['Entrypoint'],
