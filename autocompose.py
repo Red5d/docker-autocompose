@@ -124,10 +124,9 @@ def generate(cname):
                                                    'name': network.attrs['Name']}
 
     volumes = {}
-    for volume in c.volumes.list():
+    for volume in values['volumes']:
         volume_name = volume.split(':')[0]
-        new_volume = {external: true}
-        volumes[volume_name] = new_volume
+        volumes[volume_name] = {'external': True}
 
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] is not None:
