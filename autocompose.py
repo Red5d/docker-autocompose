@@ -27,7 +27,10 @@ def main():
         cfile, c_networks, c_volumes = generate(cname)
 
         struct.update(cfile)
-        networks.update(c_networks)
+        if c_networks is None:
+            networks = None
+        else:
+            networks.update(c_networks)
         volumes.update(c_volumes)
 
     render(struct, args, networks, volumes)
@@ -38,7 +41,12 @@ def render(struct, args, networks, volumes):
     if args.version == 1:
         pyaml.p(OrderedDict(struct))
     else:
-        pyaml.p(OrderedDict({'version': '"3"', 'services': struct, 'networks': networks, 'volumes': volumes}))
+        ans = {'version': '"3"', 'services': struct, 'volumes': volumes}
+
+        if networks is not None:
+            ans['networks'] = networks
+
+        pyaml.p(OrderedDict(ans))
 
 
 def is_date_or_time(s: str):
@@ -73,6 +81,8 @@ def generate(cname):
     cfile[cattrs['Name'][1:]] = {}
     ct = cfile[cattrs['Name'][1:]]
 
+    default_networks = ['bridge', 'host', 'none']
+
     values = {
         'cap_add': cattrs['HostConfig']['CapAdd'],
         'cap_drop': cattrs['HostConfig']['CapDrop'],
@@ -89,7 +99,7 @@ def generate(cname):
         #'log_driver': cattrs['HostConfig']['LogConfig']['Type'],
         #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
         'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
-        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x != 'bridge'},
+        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x not in default_networks},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
         'volumes': cattrs['HostConfig']['Binds'],
@@ -112,10 +122,13 @@ def generate(cname):
     # Populate devices key if device values are present
     if cattrs['HostConfig']['Devices']:
         values['devices'] = [x['PathOnHost']+':'+x['PathInContainer'] for x in cattrs['HostConfig']['Devices']]
-    
+
     networks = {}
     if values['networks'] == set():
         del values['networks']
+        assumed_default_network = list(cattrs['NetworkSettings']['Networks'].keys())[0]
+        values['network_mode'] = assumed_default_network
+        networks = None
     else:
         networklist = c.networks.list()
         for network in networklist:
