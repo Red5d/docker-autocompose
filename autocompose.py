@@ -27,11 +27,16 @@ def main():
         cfile, c_networks, c_volumes = generate(cname)
 
         struct.update(cfile)
+
         if c_networks is None:
             networks = None
         else:
             networks.update(c_networks)
-        volumes.update(c_volumes)
+
+        if c_volumes is None:
+            volumes = None
+        else:
+            volumes.update(c_volumes)
 
     render(struct, args, networks, volumes)
 
@@ -41,10 +46,13 @@ def render(struct, args, networks, volumes):
     if args.version == 1:
         pyaml.p(OrderedDict(struct))
     else:
-        ans = {'version': '"3"', 'services': struct, 'volumes': volumes}
+        ans = {'version': '"3"', 'services': struct}
 
         if networks is not None:
             ans['networks'] = networks
+
+        if volumes is not None:
+            ans['volumes'] = volumes
 
         pyaml.p(OrderedDict(ans))
 
@@ -137,9 +145,12 @@ def generate(cname):
                                                    'name': network.attrs['Name']}
 
     volumes = {}
-    for volume in values['volumes']:
-        volume_name = volume.split(':')[0]
-        volumes[volume_name] = {'external': True}
+    if values['volumes']:
+        for volume in values['volumes']:
+            volume_name = volume.split(':')[0]
+            volumes[volume_name] = {'external': True}
+    else:
+        volumes = None
 
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] is not None:
