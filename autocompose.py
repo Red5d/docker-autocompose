@@ -110,7 +110,7 @@ def generate(cname):
         'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x not in default_networks},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
-        'volumes': cattrs['HostConfig']['Binds'],
+        'volumes': [f'{m["Name"]}:{m["Destination"]}' for m in cattrs['Mounts'] if m['Type'] == 'volume'],
         'volume_driver': cattrs['HostConfig']['VolumeDriver'],
         'volumes_from': cattrs['HostConfig']['VolumesFrom'],
         'entrypoint': cattrs['Config']['Entrypoint'],
