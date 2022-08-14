@@ -145,7 +145,7 @@ def generate(cname):
                                                    'name': network.attrs['Name']}
 
     volumes = {}
-    if values['volumes']:
+    if values['volumes'] is not None:
         for volume in values['volumes']:
             volume_name = volume.split(':')[0]
             volumes[volume_name] = {'external': True}
