@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 import datetime
 import sys, argparse, pyaml, docker
 from collections import OrderedDict
@@ -14,6 +14,7 @@ def main():
     parser.add_argument('-a', '--all', action='store_true', help='Include all active containers')
     parser.add_argument('-v', '--version', type=int, default=3, help='Compose file version (1 or 3)')
     parser.add_argument('cnames', nargs='*', type=str, help='The name of the container to process.')
+    parser.add_argument('-c', '--createvolumes', action='store_true', help='Create new volumes instead of reusing existing ones')
     args = parser.parse_args()
 
     container_names = args.cnames
@@ -23,23 +24,23 @@ def main():
     struct = {}
     networks = {}
     volumes = {}
+    containers = {}
     for cname in container_names:
-        cfile, c_networks, c_volumes = generate(cname)
+        cfile, c_networks, c_volumes = generate(cname, createvolumes=args.createvolumes)
 
         struct.update(cfile)
 
-        if c_networks is None:
-            networks = None
-        else:
+        if not c_networks == None:
             networks.update(c_networks)
-
-        if c_volumes is None:
-            volumes = None
-        else:
+        if not c_volumes == None:
             volumes.update(c_volumes)
-
+    
+    # moving the networks = None statemens outside of the for loop. Otherwise any container could reset it.
+    if len(networks) == 0:
+    	networks = None
+    if len(volumes) == 0:
+    	volumes = None
     render(struct, args, networks, volumes)
-
 
 def render(struct, args, networks, volumes):
     # Render yaml file
@@ -71,7 +72,7 @@ def fix_label(label: str):
     return f"'{label}'" if is_date_or_time(label) else label
 
 
-def generate(cname):
+def generate(cname, createvolumes=False):
     c = docker.from_env()
 
     try:
@@ -110,7 +111,9 @@ def generate(cname):
         'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x not in default_networks},
         'security_opt': cattrs['HostConfig']['SecurityOpt'],
         'ulimits': cattrs['HostConfig']['Ulimits'],
-        'volumes': [f'{m["Name"]}:{m["Destination"]}' for m in cattrs['Mounts'] if m['Type'] == 'volume'],
+# the line below would not handle type bind
+#        'volumes': [f'{m["Name"]}:{m["Destination"]}' for m in cattrs['Mounts'] if m['Type'] == 'volume'],
+        'mounts': cattrs['Mounts'], #this could be moved outside of the dict. will only use it for generate
         'volume_driver': cattrs['HostConfig']['VolumeDriver'],
         'volumes_from': cattrs['HostConfig']['VolumesFrom'],
         'entrypoint': cattrs['Config']['Entrypoint'],
@@ -143,14 +146,34 @@ def generate(cname):
             if network.attrs['Name'] in values['networks']:
                 networks[network.attrs['Name']] = {'external': (not network.attrs['Internal']),
                                                    'name': network.attrs['Name']}
-
+#     volumes = {}
+#     if values['volumes'] is not None:
+#         for volume in values['volumes']:
+#             volume_name = volume.split(':')[0]
+#             volumes[volume_name] = {'external': True}
+#     else:
+#         volumes = None
+        
+    # handles both the returned values['volumes'] (in c_file) and volumes for both, the bind and volume types
+    # also includes the read only option
     volumes = {}
-    if values['volumes'] is not None:
-        for volume in values['volumes']:
-            volume_name = volume.split(':')[0]
-            volumes[volume_name] = {'external': True}
-    else:
+    mountpoints = []
+    if values['mounts'] is not None:
+        for mount in values['mounts']:
+            destination = mount['Destination']
+            if not mount['RW']:
+                destination = destination + ':ro'
+            if mount['Type'] == 'volume':
+                mountpoints.append(mount['Name'] + ':' + destination)
+                if not createvolumes:
+                    volumes[mount['Name']] = {'external': True}    #to reuse an existing volume ... better to make that a choice? (cli argument)
+            elif mount['Type'] == 'bind':
+                mountpoints.append(mount['Source'] + ':' + destination)
+        values['volumes'] = mountpoints
+    if len(volumes) == 0:
         volumes = None
+    values['mounts'] = None #remove this temporary data from the returned data
+
 
     # Check for command and add it if present.
     if cattrs['Config']['Cmd'] is not None:
@@ -186,4 +209,3 @@ def generate(cname):
 
 if __name__ == "__main__":
     main()
-
