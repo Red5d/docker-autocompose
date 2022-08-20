@@ -46,3 +46,7 @@ Use the new image to generate a docker-compose file from a running container or 
 To print out all containers in a docker-compose format:
 
     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/red5d/docker-autocompose $(docker ps -aq)
+    
+## Contributing
+
+When making changes, please validate the output from the script by writing it to a file (docker-compose.yml or docker-compose.yaml) and running "docker-compose config" in the same folder with it to ensure that the resulting compose file will be accepted by docker-compose.
