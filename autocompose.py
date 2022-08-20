@@ -47,7 +47,7 @@ def render(struct, args, networks, volumes):
     if args.version == 1:
         pyaml.p(OrderedDict(struct))
     else:
-        ans = {'version': '"3"', 'services': struct}
+        ans = {'version': '"3.6"', 'services': struct}
 
         if networks is not None:
             ans['networks'] = networks
