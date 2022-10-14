@@ -125,7 +125,7 @@ def render(struct, args, networks, volumes):
         if volumes is not None:
             ans["volumes"] = volumes
 
-        pyaml.p(OrderedDict(ans))
+        pyaml.p(OrderedDict(ans), string_val_style='"')
 
 
 def is_date_or_time(s: str):
