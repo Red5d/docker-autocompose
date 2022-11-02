@@ -1,16 +1,23 @@
 #! /usr/bin/env python3
+import argparse
 import datetime
-import sys, argparse, pyaml, docker
+import sys
+
 from collections import OrderedDict
+
+import docker
+import pyaml
 
 
 def list_container_names():
     c = docker.from_env()
     return [container.name for container in c.containers.list(all=True)]
 
+
 def list_network_names():
     c = docker.from_env()
     return [network.name for network in c.networks.list()]
+
 
 def generate_network_info():
     networks = {}
@@ -40,14 +47,38 @@ def generate_network_info():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate docker-compose yaml definition from running container.')
-    parser.add_argument('-a', '--all', action='store_true', help='Include all active containers')
-    parser.add_argument('-v', '--version', type=int, default=3, help='Compose file version (1 or 3)')
-    parser.add_argument('cnames', nargs='*', type=str, help='The name of the container to process.')
-    parser.add_argument('-c', '--createvolumes', action='store_true', help='Create new volumes instead of reusing existing ones')
+    parser = argparse.ArgumentParser(
+        description="Generate docker-compose yaml definition from running container.",
+    )
+    parser.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        help="Include all active containers",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        type=int,
+        default=3,
+        help="Compose file version (1 or 3)",
+    )
+    parser.add_argument(
+        "cnames",
+        nargs="*",
+        type=str,
+        help="The name of the container to process.",
+    )
+    parser.add_argument(
+        "-c",
+        "--createvolumes",
+        action="store_true",
+        help="Create new volumes instead of reusing existing ones",
+    )
     args = parser.parse_args()
 
     container_names = args.cnames
+
     if args.all:
         container_names.extend(list_container_names())
 
@@ -55,6 +86,7 @@ def main():
     networks = {}
     volumes = {}
     containers = {}
+
     for cname in container_names:
         cfile, c_networks, c_volumes = generate(cname, createvolumes=args.createvolumes)
 
@@ -64,29 +96,32 @@ def main():
             networks.update(c_networks)
         if not c_volumes == None:
             volumes.update(c_volumes)
-    
+
     # moving the networks = None statements outside of the for loop. Otherwise any container could reset it.
     if len(networks) == 0:
-    	networks = None
+        networks = None
     if len(volumes) == 0:
-    	volumes = None
-        
-    host_networks = generate_network_info()
+        volumes = None
 
-    render(struct, args, host_networks, volumes)
+    if args.all:
+        host_networks = generate_network_info()
+        networks = host_networks
+
+    render(struct, args, networks, volumes)
+
 
 def render(struct, args, networks, volumes):
     # Render yaml file
     if args.version == 1:
         pyaml.p(OrderedDict(struct))
     else:
-        ans = {'version': '"3.6"', 'services': struct}
+        ans = {"version": '"3.6"', "services": struct}
 
         if networks is not None:
-            ans['networks'] = networks
+            ans["networks"] = networks
 
         if volumes is not None:
-            ans['volumes'] = volumes
+            ans["volumes"] = volumes
 
         pyaml.p(OrderedDict(ans))
 
@@ -94,7 +129,7 @@ def render(struct, args, networks, volumes):
 def is_date_or_time(s: str):
     for parse_func in [datetime.date.fromisoformat, datetime.datetime.fromisoformat]:
         try:
-            parse_func(s.rstrip('Z'))
+            parse_func(s.rstrip("Z"))
             return True
         except ValueError:
             pass
@@ -115,7 +150,6 @@ def generate(cname, createvolumes=False):
         sys.exit(1)
 
     cattrs = c.containers.get(cid).attrs
-
 
     # Build yaml dict structure
 
@@ -187,14 +221,14 @@ def generate(cname, createvolumes=False):
                     "external": (not network.attrs["Internal"]),
                     "name": network.attrs["Name"],
                 }
-#     volumes = {}
-#     if values['volumes'] is not None:
-#         for volume in values['volumes']:
-#             volume_name = volume.split(':')[0]
-#             volumes[volume_name] = {'external': True}
-#     else:
-#         volumes = None
-        
+    #     volumes = {}
+    #     if values['volumes'] is not None:
+    #         for volume in values['volumes']:
+    #             volume_name = volume.split(':')[0]
+    #             volumes[volume_name] = {'external': True}
+    #     else:
+    #         volumes = None
+
     # handles both the returned values['volumes'] (in c_file) and volumes for both, the bind and volume types
     # also includes the read only option
     volumes = {}
