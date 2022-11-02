@@ -8,6 +8,36 @@ def list_container_names():
     c = docker.from_env()
     return [container.name for container in c.containers.list(all=True)]
 
+def list_network_names():
+    c = docker.from_env()
+    return [network.name for network in c.networks.list()]
+
+def generate_network_info():
+    networks = {}
+
+    for network_name in list_network_names():
+        connection = docker.from_env()
+        network_attributes = connection.networks.get(network_name).attrs
+
+        values = {
+            "name": network_attributes.get("Name"),
+            "scope": network_attributes.get("Scope", "local"),
+            "driver": network_attributes.get("Driver", None),
+            "enable_ipv6": network_attributes.get("EnableIPv6", False),
+            "internal": network_attributes.get("Internal", False),
+            "ipam": {
+                "driver": network_attributes.get("IPAM", {}).get("Driver", "default"),
+                "config": [
+                    {key.lower(): value for key, value in config.items()}
+                    for config in network_attributes.get("IPAM", {}).get("Config", [])
+                ],
+            },
+        }
+
+        networks[network_name] = {key: value for key, value in values.items()}
+
+    return networks
+
 
 def main():
     parser = argparse.ArgumentParser(description='Generate docker-compose yaml definition from running container.')
@@ -35,12 +65,15 @@ def main():
         if not c_volumes == None:
             volumes.update(c_volumes)
     
-    # moving the networks = None statemens outside of the for loop. Otherwise any container could reset it.
+    # moving the networks = None statements outside of the for loop. Otherwise any container could reset it.
     if len(networks) == 0:
     	networks = None
     if len(volumes) == 0:
     	volumes = None
-    render(struct, args, networks, volumes)
+        
+    host_networks = generate_network_info()
+
+    render(struct, args, host_networks, volumes)
 
 def render(struct, args, networks, volumes):
     # Render yaml file
@@ -87,65 +120,73 @@ def generate(cname, createvolumes=False):
     # Build yaml dict structure
 
     cfile = {}
-    cfile[cattrs['Name'][1:]] = {}
-    ct = cfile[cattrs['Name'][1:]]
+    cfile[cattrs.get("Name")[1:]] = {}
+    ct = cfile[cattrs.get("Name")[1:]]
 
-    default_networks = ['bridge', 'host', 'none']
+    default_networks = ["bridge", "host", "none"]
 
     values = {
-        'cap_add': cattrs['HostConfig']['CapAdd'],
-        'cap_drop': cattrs['HostConfig']['CapDrop'],
-        'cgroup_parent': cattrs['HostConfig']['CgroupParent'],
-        'container_name': cattrs['Name'][1:],
-        'devices': [],
-        'dns': cattrs['HostConfig']['Dns'],
-        'dns_search': cattrs['HostConfig']['DnsSearch'],
-        'environment': cattrs['Config']['Env'],
-        'extra_hosts': cattrs['HostConfig']['ExtraHosts'],
-        'image': cattrs['Config']['Image'],
-        'labels': {label: fix_label(value) for label, value in cattrs['Config']['Labels'].items()},
-        'links': cattrs['HostConfig']['Links'],
-        #'log_driver': cattrs['HostConfig']['LogConfig']['Type'],
-        #'log_opt': cattrs['HostConfig']['LogConfig']['Config'],
-        'logging': {'driver': cattrs['HostConfig']['LogConfig']['Type'], 'options': cattrs['HostConfig']['LogConfig']['Config']},
-        'networks': {x for x in cattrs['NetworkSettings']['Networks'].keys() if x not in default_networks},
-        'security_opt': cattrs['HostConfig']['SecurityOpt'],
-        'ulimits': cattrs['HostConfig']['Ulimits'],
-# the line below would not handle type bind
-#        'volumes': [f'{m["Name"]}:{m["Destination"]}' for m in cattrs['Mounts'] if m['Type'] == 'volume'],
-        'mounts': cattrs['Mounts'], #this could be moved outside of the dict. will only use it for generate
-        'volume_driver': cattrs['HostConfig']['VolumeDriver'],
-        'volumes_from': cattrs['HostConfig']['VolumesFrom'],
-        'entrypoint': cattrs['Config']['Entrypoint'],
-        'user': cattrs['Config']['User'],
-        'working_dir': cattrs['Config']['WorkingDir'],
-        'domainname': cattrs['Config']['Domainname'],
-        'hostname': cattrs['Config']['Hostname'],
-        'ipc': cattrs['HostConfig']['IpcMode'],
-        'mac_address': cattrs['NetworkSettings']['MacAddress'],
-        'privileged': cattrs['HostConfig']['Privileged'],
-        'restart': cattrs['HostConfig']['RestartPolicy']['Name'],
-        'read_only': cattrs['HostConfig']['ReadonlyRootfs'],
-        'stdin_open': cattrs['Config']['OpenStdin'],
-        'tty': cattrs['Config']['Tty']
+        "cap_drop": cattrs.get("HostConfig", {}).get("CapDrop", None),
+        "cgroup_parent": cattrs.get("HostConfig", {}).get("CgroupParent", None),
+        "container_name": cattrs.get("Name")[1:],
+        "devices": [],
+        "dns": cattrs.get("HostConfig", {}).get("Dns", None),
+        "dns_search": cattrs.get("HostConfig", {}).get("DnsSearch", None),
+        "environment": cattrs.get("Config", {}).get("Env", None),
+        "extra_hosts": cattrs.get("HostConfig", {}).get("ExtraHosts", None),
+        "image": cattrs.get("Config", {}).get("Image", None),
+        "labels": {label: fix_label(value) for label, value in cattrs.get("Config", {}).get("Labels", {}).items()},
+        "links": cattrs.get("HostConfig", {}).get("Links"),
+        #'log_driver': cattrs.get('HostConfig']['LogConfig']['Type'],
+        #'log_opt': cattrs.get('HostConfig']['LogConfig']['Config'],
+        "logging": {
+            "driver": cattrs.get("HostConfig", {}).get("LogConfig", {}).get("Type", None),
+            "options": cattrs.get("HostConfig", {}).get("LogConfig", {}).get("Config", None),
+        },
+        "networks": {
+            x for x in cattrs.get("NetworkSettings", {}).get("Networks", {}).keys() if x not in default_networks
+        },
+        "security_opt": cattrs.get("HostConfig", {}).get("SecurityOpt"),
+        "ulimits": cattrs.get("HostConfig", {}).get("Ulimits"),
+        # the line below would not handle type bind
+        #        'volumes': [f'{m["Name"]}:{m["Destination"]}' for m in cattrs.get('Mounts'] if m['Type'] == 'volume'],
+        "mounts": cattrs.get("Mounts"),  # this could be moved outside of the dict. will only use it for generate
+        "volume_driver": cattrs.get("HostConfig", {}).get("VolumeDriver", None),
+        "volumes_from": cattrs.get("HostConfig", {}).get("VolumesFrom", None),
+        "entrypoint": cattrs.get("Config", {}).get("Entrypoint", None),
+        "user": cattrs.get("Config", {}).get("User", None),
+        "working_dir": cattrs.get("Config", {}).get("WorkingDir", None),
+        "domainname": cattrs.get("Config", {}).get("Domainname", None),
+        "hostname": cattrs.get("Config", {}).get("Hostname", None),
+        "ipc": cattrs.get("HostConfig", {}).get("IpcMode", None),
+        "mac_address": cattrs.get("NetworkSettings", {}).get("MacAddress", None),
+        "privileged": cattrs.get("HostConfig", {}).get("Privileged", None),
+        "restart": cattrs.get("HostConfig", {}).get("RestartPolicy", {}).get("Name", None),
+        "read_only": cattrs.get("HostConfig", {}).get("ReadonlyRootfs", None),
+        "stdin_open": cattrs.get("Config", {}).get("OpenStdin", None),
+        "tty": cattrs.get("Config", {}).get("Tty", None),
     }
 
     # Populate devices key if device values are present
-    if cattrs['HostConfig']['Devices']:
-        values['devices'] = [x['PathOnHost']+':'+x['PathInContainer'] for x in cattrs['HostConfig']['Devices']]
+    if cattrs.get("HostConfig", {}).get("Devices"):
+        values["devices"] = [
+            x["PathOnHost"] + ":" + x["PathInContainer"] for x in cattrs.get("HostConfig", {}).get("Devices")
+        ]
 
     networks = {}
-    if values['networks'] == set():
-        del values['networks']
-        assumed_default_network = list(cattrs['NetworkSettings']['Networks'].keys())[0]
-        values['network_mode'] = assumed_default_network
+    if values["networks"] == set():
+        del values["networks"]
+        assumed_default_network = list(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys())[0]
+        values["network_mode"] = assumed_default_network
         networks = None
     else:
         networklist = c.networks.list()
         for network in networklist:
-            if network.attrs['Name'] in values['networks']:
-                networks[network.attrs['Name']] = {'external': (not network.attrs['Internal']),
-                                                   'name': network.attrs['Name']}
+            if network.attrs["Name"] in values["networks"]:
+                networks[network.attrs["Name"]] = {
+                    "external": (not network.attrs["Internal"]),
+                    "name": network.attrs["Name"],
+                }
 #     volumes = {}
 #     if values['volumes'] is not None:
 #         for volume in values['volumes']:
@@ -158,41 +199,59 @@ def generate(cname, createvolumes=False):
     # also includes the read only option
     volumes = {}
     mountpoints = []
-    if values['mounts'] is not None:
-        for mount in values['mounts']:
-            destination = mount['Destination']
-            if not mount['RW']:
-                destination = destination + ':ro'
-            if mount['Type'] == 'volume':
-                mountpoints.append(mount['Name'] + ':' + destination)
+    if values["mounts"] is not None:
+        for mount in values["mounts"]:
+            destination = mount["Destination"]
+            if not mount["RW"]:
+                destination = destination + ":ro"
+            if mount["Type"] == "volume":
+                mountpoints.append(mount["Name"] + ":" + destination)
                 if not createvolumes:
-                    volumes[mount['Name']] = {'external': True}    #to reuse an existing volume ... better to make that a choice? (cli argument)
-            elif mount['Type'] == 'bind':
-                mountpoints.append(mount['Source'] + ':' + destination)
-        values['volumes'] = mountpoints
+                    volumes[mount["Name"]] = {
+                        "external": True
+                    }  # to reuse an existing volume ... better to make that a choice? (cli argument)
+            elif mount["Type"] == "bind":
+                mountpoints.append(mount["Source"] + ":" + destination)
+        values["volumes"] = mountpoints
     if len(volumes) == 0:
         volumes = None
-    values['mounts'] = None #remove this temporary data from the returned data
-
+    values["mounts"] = None  # remove this temporary data from the returned data
 
     # Check for command and add it if present.
-    if cattrs['Config']['Cmd'] is not None:
-        values['command'] = cattrs['Config']['Cmd']
+    if cattrs.get("Config", {}).get("Cmd") is not None:
+        values["command"] = cattrs.get("Config", {}).get("Cmd")
 
     # Check for exposed/bound ports and add them if needed.
     try:
-        expose_value = list(cattrs['Config']['ExposedPorts'].keys())
-        ports_value = [cattrs['HostConfig']['PortBindings'][key][0]['HostIp']+':'+cattrs['HostConfig']['PortBindings'][key][0]['HostPort']+':'+key for key in cattrs['HostConfig']['PortBindings']]
+        expose_value = list(cattrs.get("Config", {}).get("ExposedPorts", {}).keys())
+        ports_value = [
+            cattrs.get("HostConfig", {}).get("PortBindings", {})[key][0]["HostIp"]
+            + ":"
+            + cattrs.get("HostConfig", {}).get("PortBindings", {})[key][0]["HostPort"]
+            + ":"
+            + key
+            for key in cattrs.get("HostConfig", {}).get("PortBindings")
+        ]
 
         # If bound ports found, don't use the 'expose' value.
-        if (ports_value != None) and (ports_value != "") and (ports_value != []) and (ports_value != 'null') and (ports_value != {}) and (ports_value != "default") and (ports_value != 0) and (ports_value != ",") and (ports_value != "no"):
+        if (
+            (ports_value != None)
+            and (ports_value != "")
+            and (ports_value != [])
+            and (ports_value != "null")
+            and (ports_value != {})
+            and (ports_value != "default")
+            and (ports_value != 0)
+            and (ports_value != ",")
+            and (ports_value != "no")
+        ):
             for index, port in enumerate(ports_value):
-                if port[0] == ':':
+                if port[0] == ":":
                     ports_value[index] = port[1:]
 
-            values['ports'] = ports_value
+            values["ports"] = ports_value
         else:
-            values['expose'] = expose_value
+            values["expose"] = expose_value
 
     except (KeyError, TypeError):
         # No ports exposed/bound. Continue without them.
@@ -201,7 +260,17 @@ def generate(cname, createvolumes=False):
     # Iterate through values to finish building yaml dict.
     for key in values:
         value = values[key]
-        if (value != None) and (value != "") and (value != []) and (value != 'null') and (value != {}) and (value != "default") and (value != 0) and (value != ",") and (value != "no"):
+        if (
+            (value != None)
+            and (value != "")
+            and (value != [])
+            and (value != "null")
+            and (value != {})
+            and (value != "default")
+            and (value != 0)
+            and (value != ",")
+            and (value != "no")
+        ):
             ct[key] = value
 
     return cfile, networks, volumes
