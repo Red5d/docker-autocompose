@@ -210,9 +210,10 @@ def generate(cname, createvolumes=False):
     networks = {}
     if values["networks"] == set():
         del values["networks"]
-        assumed_default_network = list(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys())[0]
-        values["network_mode"] = assumed_default_network
-        networks = None
+        if len(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys()) > 0:
+            assumed_default_network = list(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys())[0]
+            values["network_mode"] = assumed_default_network
+            networks = None
     else:
         networklist = c.networks.list()
         for network in networklist:
@@ -294,17 +295,7 @@ def generate(cname, createvolumes=False):
     # Iterate through values to finish building yaml dict.
     for key in values:
         value = values[key]
-        if (
-            (value != None)
-            and (value != "")
-            and (value != [])
-            and (value != "null")
-            and (value != {})
-            and (value != "default")
-            and (value != 0)
-            and (value != ",")
-            and (value != "no")
-        ):
+        if value not in [None, "", [], "null", {}, "default", 0, ",", "no"]:
             ct[key] = value
 
     return cfile, networks, volumes
