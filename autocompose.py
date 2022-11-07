@@ -8,6 +8,8 @@ from collections import OrderedDict
 import docker
 import pyaml
 
+IGNORE_VALUES = [None, "", [], "null", {}, "default", 0, ",", "no"]
+
 
 def list_container_names():
     c = docker.from_env()
@@ -210,9 +212,11 @@ def generate(cname, createvolumes=False):
     networks = {}
     if values["networks"] == set():
         del values["networks"]
-        assumed_default_network = list(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys())[0]
-        values["network_mode"] = assumed_default_network
-        networks = None
+
+        if len(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys()) > 0:
+            assumed_default_network = list(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys())[0]
+            values["network_mode"] = assumed_default_network
+            networks = None
     else:
         networklist = c.networks.list()
         for network in networklist:
@@ -268,17 +272,7 @@ def generate(cname, createvolumes=False):
         ]
 
         # If bound ports found, don't use the 'expose' value.
-        if (
-            (ports_value != None)
-            and (ports_value != "")
-            and (ports_value != [])
-            and (ports_value != "null")
-            and (ports_value != {})
-            and (ports_value != "default")
-            and (ports_value != 0)
-            and (ports_value != ",")
-            and (ports_value != "no")
-        ):
+        if ports_value not in IGNORE_VALUES:
             for index, port in enumerate(ports_value):
                 if port[0] == ":":
                     ports_value[index] = port[1:]
@@ -294,17 +288,7 @@ def generate(cname, createvolumes=False):
     # Iterate through values to finish building yaml dict.
     for key in values:
         value = values[key]
-        if (
-            (value != None)
-            and (value != "")
-            and (value != [])
-            and (value != "null")
-            and (value != {})
-            and (value != "default")
-            and (value != 0)
-            and (value != ",")
-            and (value != "no")
-        ):
+        if value not in IGNORE_VALUES:
             ct[key] = value
 
     return cfile, networks, volumes
