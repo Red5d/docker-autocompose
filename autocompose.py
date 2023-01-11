@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import argparse
 import datetime
+import re
 import sys
 
 from collections import OrderedDict
@@ -77,12 +78,22 @@ def main():
         action="store_true",
         help="Create new volumes instead of reusing existing ones",
     )
+    parser.add_argument(
+        "-f",
+        "--filter",
+        type=str,
+        help="Filter containers by regex",
+    )
     args = parser.parse_args()
 
     container_names = args.cnames
 
     if args.all:
         container_names.extend(list_container_names())
+
+    if args.filter:
+        cfilter = re.compile(args.filter)
+        container_names = [c for c in container_names if cfilter.search(c)]
 
     struct = {}
     networks = {}
