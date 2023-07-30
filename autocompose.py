@@ -9,6 +9,7 @@ from collections import OrderedDict
 import docker
 import pyaml
 
+pyaml.add_representer(bool,lambda s,o: s.represent_scalar('tag:yaml.org,2002:bool',['false','true'][o]))
 IGNORE_VALUES = [None, "", [], "null", {}, "default", 0, ",", "no"]
 
 
