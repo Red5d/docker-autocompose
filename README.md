@@ -31,6 +31,21 @@ While experimenting with various docker containers from the Hub, I realized that
 
 With this tool, I can easily generate docker-compose files for managing the containers that I've set up manually.
 
+## Native installation
+
+You can install it system-wide from the project directory with a command:
+
+```python setup.py install --optimize=1```
+
+You can also install directly from PyPI (https://pypi.org/project/docker-autocompose) with a command:
+```pipx install docker-autocompose```
+
+There are unofficial packages available in the Arch User Repository:
+* [Stable](https://aur.archlinux.org/packages/docker-autocompose)
+* [Development (follows the master branch)](https://aur.archlinux.org/packages/docker-autocompose-git)
+
+**AUR packages are provided by a third party and are not tested or updated by the maintainer(s) of the docker-autocompose project.**
+
 ## Docker Usage
 
 You can use this tool from a docker container by either cloning this repo and building the image or using the [automatically generated image on GitHub](https://github.com/Red5d/docker-autocompose/pkgs/container/docker-autocompose)
