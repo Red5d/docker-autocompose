@@ -37,9 +37,6 @@ You can install it system-wide from the project directory with a command:
 
 ```python setup.py install --optimize=1```
 
-You can also install directly from PyPI (https://pypi.org/project/docker-autocompose) with a command:
-```pipx install docker-autocompose```
-
 There are unofficial packages available in the Arch User Repository:
 * [Stable](https://aur.archlinux.org/packages/docker-autocompose)
 * [Development (follows the master branch)](https://aur.archlinux.org/packages/docker-autocompose-git)
