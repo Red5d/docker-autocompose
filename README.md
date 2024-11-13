@@ -4,21 +4,26 @@ Generates a docker-compose yaml definition from a docker container.
 Required Modules:
 * [pyaml](https://pypi.python.org/project/pyaml/)
 * [docker](https://pypi.python.org/project/docker)
-* [six](https://pypi.python.org/project/six)
+
+For building this project [poetry](https://python-poetry.org/) is required. Install it with the package manager of your OS or if that's impossible with `pip`.
+
+Install them:
+
+    poetry install
 
 Example Usage:
 
-    sudo python autocompose.py <container-name-or-id>
+    poetry run autocompose <container ids>
 
 
 Generate a compose file for multiple containers together:
 
-    sudo python autocompose.py apache-test mysql-test
+    poetry run autocompose apache-test mysql-test
 
 
 The script defaults to outputting to compose file version 3, but use "-v 1" to output to version 1:
 
-    sudo python autocompose.py -v 1 apache-test
+    poetry run autocompose -v 1 apache-test
 
 
 Outputs a docker-compose compatible yaml structure:
@@ -33,9 +38,7 @@ With this tool, I can easily generate docker-compose files for managing the cont
 
 ## Native installation
 
-You can install it system-wide from the project directory with a command:
-
-```python setup.py install --optimize=1```
+System-wide installation is discouraged. If you really need to, you can run `pip install --user --break-system-packages .` (use at your own discretion).
 
 There are unofficial packages available in the Arch User Repository:
 * [Stable](https://aur.archlinux.org/packages/docker-autocompose)
