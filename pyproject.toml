@@ -28,10 +28,10 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-pyaml = ">=24.9.0"
-docker = ">=3.4.1"
-six = ">=1.16.0"
+# see https://python-poetry.org/docs/dependency-specification/ for version specifiers
+python = ">=3.8"
+pyaml = "~24.9.0"
+docker = "~7.1.0"
 
 [tool.poetry.scripts]
 autocompose = "src.autocompose:main"
