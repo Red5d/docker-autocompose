@@ -51,7 +51,7 @@ def generate_network_info():
                 "driver": network_attributes.get("IPAM", {}).get("Driver", "default"),
                 "config": [
                     {key.lower(): value for key, value in config.items()}
-                    for config in network_attributes.get("IPAM", {}).get("Config", [])
+                    for config in network_attributes.get("IPAM", {}).get("Config", []) or []
                 ],
             },
         }
@@ -95,6 +95,12 @@ def main():
         "--filter",
         type=str,
         help="Filter containers by regex",
+    )
+    parser.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="Use plain (non-quoted) strings where possible",
     )
     args = parser.parse_args()
 
@@ -148,7 +154,12 @@ def render(struct, args, networks, volumes):
         if volumes is not None:
             ans["volumes"] = volumes
 
-        pyaml.p(OrderedDict(ans), string_val_style='"')
+        dump_kwargs = {}
+
+        if not args.plain:
+            dump_kwargs["string_val_style"] = '"'
+
+        pyaml.p(OrderedDict(ans), **dump_kwargs)
 
 
 def generate(cname, createvolumes=False):
