@@ -51,7 +51,7 @@ def generate_network_info():
                 "driver": network_attributes.get("IPAM", {}).get("Driver", "default"),
                 "config": [
                     {key.lower(): value for key, value in config.items()}
-                    for config in network_attributes.get("IPAM", {}).get("Config", [])
+                    for config in network_attributes.get("IPAM", {}).get("Config", []) or []
                 ],
             },
         }
