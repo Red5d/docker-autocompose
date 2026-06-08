@@ -13,6 +13,56 @@ pyaml.add_representer(bool,lambda s,o: s.represent_scalar('tag:yaml.org,2002:boo
 IGNORE_VALUES = [None, "", [], "null", {}, "default", 0, ",", "no"]
 
 
+def format_compose_duration(value):
+    if isinstance(value, int):
+        return f"{value}ns"
+    return value
+
+
+def build_service_networks(network_settings, default_networks):
+    custom_networks = {}
+
+    for network_name, network_attributes in network_settings.items():
+        if network_name in default_networks:
+            continue
+
+        network_values = {}
+        aliases = network_attributes.get("Aliases")
+        if aliases:
+            network_values["aliases"] = aliases
+
+        custom_networks[network_name] = network_values
+
+    if not custom_networks:
+        return None, set()
+
+    if any(custom_networks.values()):
+        return {name: values if values else {} for name, values in custom_networks.items()}, set(custom_networks.keys())
+
+    return sorted(custom_networks.keys()), set(custom_networks.keys())
+
+
+def build_healthcheck(config):
+    healthcheck = config.get("Healthcheck")
+    if healthcheck in IGNORE_VALUES:
+        return None
+
+    values = {}
+
+    if healthcheck.get("Test") not in IGNORE_VALUES:
+        values["test"] = healthcheck.get("Test")
+    if healthcheck.get("Interval") not in IGNORE_VALUES:
+        values["interval"] = format_compose_duration(healthcheck.get("Interval"))
+    if healthcheck.get("Timeout") not in IGNORE_VALUES:
+        values["timeout"] = format_compose_duration(healthcheck.get("Timeout"))
+    if healthcheck.get("Retries") not in IGNORE_VALUES:
+        values["retries"] = healthcheck.get("Retries")
+    if healthcheck.get("StartPeriod") not in IGNORE_VALUES:
+        values["start_period"] = format_compose_duration(healthcheck.get("StartPeriod"))
+
+    return values
+
+
 def shell_escape_string(input_string):
     # Currently known issues:
     # - Basic Auth strings (e.g. set via Træfik labels) contain $ characters, which must be doubled. See https://stackoverflow.com/a/40621373/5885325
@@ -169,6 +219,8 @@ def generate(cname, createvolumes=False):
     ct = cfile[cattrs.get("Name")[1:]]
 
     default_networks = ["bridge", "host", "none"]
+    network_settings = cattrs.get("NetworkSettings", {}).get("Networks", {})
+    service_networks, attached_network_names = build_service_networks(network_settings, default_networks)
 
     values = {
         "cap_drop": cattrs.get("HostConfig", {}).get("CapDrop", None),
@@ -188,9 +240,8 @@ def generate(cname, createvolumes=False):
             "driver": cattrs.get("HostConfig", {}).get("LogConfig", {}).get("Type", None),
             "options": cattrs.get("HostConfig", {}).get("LogConfig", {}).get("Config", None),
         },
-        "networks": {
-            x for x in cattrs.get("NetworkSettings", {}).get("Networks", {}).keys() if x not in default_networks
-        },
+        "networks": service_networks,
+        "healthcheck": build_healthcheck(cattrs.get("Config", {})),
         "security_opt": cattrs.get("HostConfig", {}).get("SecurityOpt"),
         "ulimits": cattrs.get("HostConfig", {}).get("Ulimits"),
         # the line below would not handle type bind
@@ -228,17 +279,17 @@ def generate(cname, createvolumes=False):
         ]
 
     networks = {}
-    if values["networks"] == set():
+    if not attached_network_names:
         del values["networks"]
 
-        if len(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys()) > 0:
-            assumed_default_network = list(cattrs.get("NetworkSettings", {}).get("Networks", {}).keys())[0]
+        if len(network_settings.keys()) > 0:
+            assumed_default_network = list(network_settings.keys())[0]
             values["network_mode"] = assumed_default_network
             networks = None
     else:
         networklist = c.networks.list()
         for network in networklist:
-            if network.attrs["Name"] in values["networks"]:
+            if network.attrs["Name"] in attached_network_names:
                 networks[network.attrs["Name"]] = {
                     "external": (not network.attrs["Internal"]),
                     "name": network.attrs["Name"],
