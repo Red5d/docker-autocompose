@@ -5,9 +5,8 @@ from src import autocompose
 
 
 class FakeContainerSummary:
-    def __init__(self, name, short_id):
-        self.name = name
-        self.short_id = short_id
+    name = "svc"
+    short_id = "abc123"
 
 
 class FakeContainerWithAttrs:
@@ -16,11 +15,11 @@ class FakeContainerWithAttrs:
 
 
 class FakeContainers:
-    def __init__(self, attrs, name="svc", short_id="abc123"):
+    def __init__(self, attrs):
         self._attrs = attrs
-        self._summary = FakeContainerSummary(name=name, short_id=short_id)
+        self._summary = FakeContainerSummary()
 
-    def list(self, all=True):
+    def list(self, **_kwargs):
         return [self._summary]
 
     def get(self, _cid):
@@ -89,13 +88,28 @@ def make_attrs(networks, healthcheck=None):
 
 
 class GenerateTests(unittest.TestCase):
-    def test_preserves_network_aliases_and_healthcheck(self):
+    def test_preserves_network_aliases(self):
         attrs = make_attrs(
             {
                 "custom_net": {
                     "Aliases": ["svc", "db"],
                 }
-            },
+            }
+        )
+        fake_client = FakeDockerClient(attrs, networks=[("custom_net", False)])
+
+        with patch("src.autocompose.docker.from_env", return_value=fake_client):
+            cfile, c_networks, _ = autocompose.generate("svc")
+
+        self.assertEqual(cfile["svc"]["networks"], {"custom_net": {"aliases": ["svc", "db"]}})
+        self.assertEqual(
+            c_networks,
+            {"custom_net": {"external": True, "name": "custom_net"}},
+        )
+
+    def test_serializes_healthcheck_config(self):
+        attrs = make_attrs(
+            {"custom_net": {}},
             healthcheck={
                 "Test": ["CMD-SHELL", "echo ok"],
                 "Interval": 1000000000,
@@ -107,12 +121,10 @@ class GenerateTests(unittest.TestCase):
         fake_client = FakeDockerClient(attrs, networks=[("custom_net", False)])
 
         with patch("src.autocompose.docker.from_env", return_value=fake_client):
-            cfile, c_networks, _ = autocompose.generate("svc")
+            cfile, _, _ = autocompose.generate("svc")
 
-        service = cfile["svc"]
-        self.assertEqual(service["networks"], {"custom_net": {"aliases": ["svc", "db"]}})
         self.assertEqual(
-            service["healthcheck"],
+            cfile["svc"]["healthcheck"],
             {
                 "test": ["CMD-SHELL", "echo ok"],
                 "interval": "1000000000ns",
@@ -120,10 +132,6 @@ class GenerateTests(unittest.TestCase):
                 "retries": 3,
                 "start_period": "3000000000ns",
             },
-        )
-        self.assertEqual(
-            c_networks,
-            {"custom_net": {"external": True, "name": "custom_net"}},
         )
 
     def test_simple_custom_network_uses_list_form(self):

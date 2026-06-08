@@ -36,15 +36,16 @@ def build_service_networks(network_settings, default_networks):
     if not custom_networks:
         return None, set()
 
-    if any(custom_networks.values()):
-        return {name: values if values else {} for name, values in custom_networks.items()}, set(custom_networks.keys())
+    has_network_config = any(network_values for network_values in custom_networks.values())
+    if has_network_config:
+        return custom_networks, set(custom_networks.keys())
 
     return sorted(custom_networks.keys()), set(custom_networks.keys())
 
 
 def build_healthcheck(config):
     healthcheck = config.get("Healthcheck")
-    if healthcheck in IGNORE_VALUES:
+    if not isinstance(healthcheck, dict):
         return None
 
     values = {}
